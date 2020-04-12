@@ -1,0 +1,228 @@
+import java.util.regex.Matcher
+import java.util.regex.Pattern
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterRoot = localProperties.getProperty('flutter.sdk')
+if (flutterRoot == null) {
+    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
+}
+
+def getBuildNumber = { ->
+    def buildNumber = localProperties.getProperty('flutter.versionCode')
+    if (buildNumber == null || buildNumber == 1) {
+        buildNumber = 'LOCAL'
+    }
+    return buildNumber
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+def getCurrentFlavor() {
+    Gradle gradle = getGradle()
+    String tskReqStr = gradle.getStartParameter().getTaskRequests().toString()
+
+    Pattern pattern
+
+    if (tskReqStr.contains("assemble"))
+        pattern = Pattern.compile("assemble(\\w+)(Release|Debug)")
+    else
+        pattern = Pattern.compile("generate(\\w+)(Release|Debug)")
+
+    Matcher matcher = pattern.matcher(tskReqStr)
+
+    if (matcher.find()) {
+        return matcher.group(1).toLowerCase()
+    } else {
+        return ""
+    }
+}
+
+def getCurrentBuildType() {
+    Gradle gradle = getGradle()
+    String tskReqStr = gradle.getStartParameter().getTaskRequests().toString()
+
+    if (tskReqStr.contains("Release")) {
+        return "release"
+    } else if (tskReqStr.contains("Debug")) {
+        return "debug"
+    }
+    return ""
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+
+android {
+    compileSdkVersion 29
+    buildToolsVersion '30.0.0 rc1'
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    lintOptions {
+        disable 'InvalidPackage'
+        checkReleaseBuilds false
+    }
+
+    defaultConfig {
+        applicationId "com.bittrex.bittrex_app"
+        minSdkVersion 19
+        targetSdkVersion 28
+        versionName flutterVersionName
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        multiDexEnabled true
+        manifestPlaceholders = [
+                'appAuthRedirectScheme': 'ph.com.globe.globeone.prod'
+        ]
+    }
+
+    flavorDimensions "app"
+    productFlavors {
+        development {
+            dimension "app"
+            applicationId "com.bittrex.bittrex_app.alpha"
+            versionCode 1
+            versionName "1.0.0"
+            manifestPlaceholders.appNameSuffix = " DEV"
+        }
+
+        staging {
+            dimension "app"
+            applicationId "com.bittrex.bittrex_app.staging"
+            versionCode 1
+            versionName "1.0.0"
+            manifestPlaceholders.appNameSuffix = " STAG"
+
+        }
+
+        production {
+            dimension "app"
+            applicationId "com.bittrex.bittrex_app"
+            versionCode 1
+            versionName "1.0.0"
+            manifestPlaceholders.appNameSuffix = ""
+        }
+    }
+
+    signingConfigs {
+        release {
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeFile file('keystore/debug.keystore')
+            storePassword 'android'
+        }
+        debug {
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeFile file('keystore/debug.keystore')
+            storePassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            shrinkResources false
+            minifyEnabled false
+            debuggable true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            versionNameSuffix "." + getBuildNumber()
+            matchingFallbacks = ['debug']
+            manifestPlaceholders.appName = "Preg Debug"
+        }
+
+        release {
+            signingConfig signingConfigs.release
+            shrinkResources true
+            minifyEnabled true
+            debuggable getBuildNumber() == "LOCAL"
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            versionNameSuffix "." + getBuildNumber()
+            matchingFallbacks = ['release']
+            manifestPlaceholders.appName = "Bittrex"
+        }
+
+        lintOptions {
+            abortOnError false
+            disable 'MissingTranslation'
+        }
+
+        dexOptions {
+            jumboMode true
+            preDexLibraries false
+            javaMaxHeapSize "4g"
+        }
+
+        packagingOptions {
+            exclude 'META-INF/DEPENDENCIES'
+            exclude 'META-INF/NOTICE'
+            exclude 'META-INF/LICENSE'
+            exclude 'META-INF/*'
+        }
+
+        compileOptions {
+            sourceCompatibility JavaVersion.VERSION_1_8
+            targetCompatibility JavaVersion.VERSION_1_8
+        }
+
+        applicationVariants.all { variant ->
+            def buildTypeName = variant.buildType.name
+            def flavorName = variant.productFlavors[0].name
+
+            def googleServicesJson = 'google-services.json'
+            def originalPath = "src/$flavorName/google-services/$buildTypeName/$googleServicesJson"
+            def destPath = '.'
+
+            copy {
+                if (flavorName.equals(getCurrentFlavor()) && buildTypeName.equals(getCurrentBuildType())) {
+                    task "${flavorName}${buildTypeName.capitalize()}CopyFileGoogleService"(type: Copy)
+                    "${flavorName}${buildTypeName.capitalize()}CopyFileGoogleService" {
+                        description = 'copy some file(s)'
+                        from "${originalPath}"
+                        into "${destPath}"
+                        println description
+                    }
+                    tasks.getByPath(":${project.name}:assemble${flavorName.capitalize()}${buildTypeName.capitalize()}").dependsOn "${flavorName}${buildTypeName.capitalize()}CopyFileGoogleService"
+                }
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility = "1.8"
+        targetCompatibility = 1.8
+    }
+}
+
+flutter {
+    source '../..'
+}
+repositories {
+    maven { url "http://kochava.bintray.com/maven" }
+}
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+    implementation 'com.android.support:multidex:1.0.3'
+
+    implementation 'com.google.firebase:firebase-messaging:20.1.5'
+}
+apply plugin: 'com.google.gms.google-services'
