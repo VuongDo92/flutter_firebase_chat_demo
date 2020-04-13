@@ -1,8 +1,7 @@
-package com.bittrex.bittrex_app
+package com.example.firebasechat
 
 import android.content.*
 import android.os.Bundle
-import android.text.TextUtils
 
 import io.flutter.app.FlutterActivity
 import io.flutter.plugin.common.MethodChannel

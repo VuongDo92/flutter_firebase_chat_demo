@@ -1,4 +1,4 @@
-package com.bittrex.bittrex_app
+package com.example.firebasechat
 
 import android.content.Context
 import androidx.multidex.MultiDex

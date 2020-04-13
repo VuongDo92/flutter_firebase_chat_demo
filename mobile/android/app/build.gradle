@@ -82,7 +82,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.bittrex.bittrex_app"
+        applicationId "com.example.firebasechat"
         minSdkVersion 19
         targetSdkVersion 28
         versionName flutterVersionName
@@ -97,7 +97,7 @@ android {
     productFlavors {
         development {
             dimension "app"
-            applicationId "com.bittrex.bittrex_app.alpha"
+            applicationId "com.example.firebasechat"
             versionCode 1
             versionName "1.0.0"
             manifestPlaceholders.appNameSuffix = " DEV"
