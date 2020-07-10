@@ -6,7 +6,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class SecureStorageProvider extends SecretProvider {
 
   static String get sessionKey => Platform.isIOS ? "session" : "app_session";
-  static final iOSOptions _iOSOptions = iOSOptions(groupId: null);
+  static final IOSOptions _iOSOptions = IOSOptions(groupId: null);
+
   @override
   Future<String> getSessionToken() => getString(sessionKey);
 
